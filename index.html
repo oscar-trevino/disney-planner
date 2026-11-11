@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Disney Lightning Lane - Tracker & Prioridades</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            disney: {
+              blue: '#0B3B60',
+              deep: '#061D33',
+              gold: '#F5A623',
+              goldHover: '#D98200',
+              lightBlue: '#1E6B9E',
+              sky: '#38BDF8',
+              cardBg: '#FFFFFF',
+              canvas: '#F1F5F9'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar and smooth transitions */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #94a3b8;
+      border-radius: 4px;
+    }
+    .badge-pulse {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.03); }
+    }
+    /* Touch optimization */
+    button, select, input {
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="bg-disney-canvas text-slate-800 antialiased min-h-screen flex flex-col font-sans pb-16">
+
+  <!-- Header con Branding Lightning Lane -->
+  <header class="bg-gradient-to-r from-disney-deep via-disney-blue to-disney-lightBlue text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 sm:px-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md">
+            <!-- Rayo / Lightning Lane SVG -->
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              Disney LL Planner
+              <span class="text-xs bg-amber-400 text-slate-900 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Prioridades</span>
+            </h1>
+            <p class="text-xs text-blue-200">Seguimiento en vivo de LLMP y LLSP</p>
+          </div>
+        </div>
+
+        <!-- Botón Reiniciar Estado -->
+        <button id="btn-reset" title="Reiniciar progreso" class="md:hidden p-2 text-xs bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-lg text-white border border-white/20 transition flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+
+        <!-- Botón Bloquear/Cerrar Sesión Móvil -->
+        <button id="btn-logout-mobile" title="Bloquear / Cerrar Sesión" class="md:hidden p-2 text-xs bg-amber-500/20 hover:bg-amber-500/30 active:bg-amber-500/40 rounded-lg text-amber-300 border border-amber-400/30 transition flex items-center gap-1 ml-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </button>
+      </div>
+
+      <!-- Live Counters Dashboard -->
+      <div class="grid grid-cols-4 gap-2 text-center text-xs">
+        <div class="bg-white/10 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-white/10">
+          <span class="block text-slate-300 font-medium text-[10px]">TOTAL</span>
+          <span id="stat-total" class="text-base sm:text-lg font-bold text-white">0</span>
+        </div>
+        <div class="bg-amber-500/20 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-amber-400/30">
+          <span class="block text-amber-200 font-medium text-[10px]">RESERVADOS</span>
+          <span id="stat-reserved" class="text-base sm:text-lg font-bold text-amber-300">0</span>
+        </div>
+        <div class="bg-emerald-500/20 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-emerald-400/30">
+          <span class="block text-emerald-200 font-medium text-[10px]">SUBIDOS</span>
+          <span id="stat-done" class="text-base sm:text-lg font-bold text-emerald-300">0</span>
+        </div>
+        <div class="bg-blue-500/20 backdrop-blur-sm rounded-lg px-2.5 py-1.5 border border-blue-400/30">
+          <span class="block text-blue-200 font-medium text-[10px]">PENDIENTES</span>
+          <span id="stat-pending" class="text-base sm:text-lg font-bold text-blue-200">0</span>
+        </div>
+      </div>
+
+      <!-- Botón Reiniciar Desktop -->
+      <button id="btn-reset-desktop" class="hidden md:inline-flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 active:bg-white/30 px-3 py-2 rounded-lg text-white border border-white/20 transition cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <span>Reiniciar datos</span>
+      </button>
+
+      <!-- Botón Bloquear/Cerrar Sesión Desktop -->
+      <button id="btn-logout-desktop" class="hidden md:inline-flex items-center gap-1.5 text-xs bg-amber-500/20 hover:bg-amber-500/30 active:bg-amber-500/40 px-3 py-2 rounded-lg text-amber-200 border border-amber-400/30 transition cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        <span>Bloquear</span>
+      </button>
+
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 w-full mt-4 flex-grow">
+
+    <!-- Park Tabs Selector -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-2 mb-4">
+      <div class="flex overflow-x-auto pb-1 sm:pb-0 gap-1.5 scrollbar-none" id="park-tabs">
+        <button data-park="all" class="park-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 bg-disney-blue text-white shadow">
+          🏰 Todos los Parques
+        </button>
+        <button data-park="mk" class="park-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 text-slate-600 hover:bg-slate-100">
+          🏰 Magic Kingdom
+        </button>
+        <button data-park="hs" class="park-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 text-slate-600 hover:bg-slate-100">
+          🎬 Hollywood Studios
+        </button>
+        <button data-park="epcot" class="park-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 text-slate-600 hover:bg-slate-100">
+          🌐 EPCOT
+        </button>
+        <button data-park="ak" class="park-tab px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 text-slate-600 hover:bg-slate-100">
+          🦁 Animal Kingdom
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters Bar (Collapsible on mobile or clean grid) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        
+        <!-- Búsqueda -->
+        <div class="relative">
+          <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Buscar Atracción</label>
+          <div class="relative">
+            <input type="text" id="search-input" placeholder="Ej. Tron, Star Wars..." 
+              class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-disney-lightBlue focus:border-disney-lightBlue outline-none transition">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Filtro Tipo de Pase -->
+        <div>
+          <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Tipo de Pase</label>
+          <select id="pass-filter" class="w-full py-2 px-3 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-disney-lightBlue focus:border-disney-lightBlue outline-none">
+            <option value="all">⚡ Todos los Pases</option>
+            <option value="LLSP">⭐ Single Pass (LLSP)</option>
+            <option value="LLMP">🔷 Multi Pass (LLMP)</option>
+          </select>
+        </div>
+
+        <!-- Filtro por Zona -->
+        <div>
+          <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Zona del Parque</label>
+          <select id="zone-filter" class="w-full py-2 px-3 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-disney-lightBlue focus:border-disney-lightBlue outline-none">
+            <option value="all">📍 Todas las Zonas</option>
+          </select>
+        </div>
+
+        <!-- Filtro Altura de Niños -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-[11px] font-bold uppercase text-slate-500">Estatura del Niño</label>
+            <span id="height-label" class="text-xs font-bold text-disney-blue">Sin límite</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="height-range" min="70" max="130" value="130" step="1" 
+              class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-disney-blue">
+            <button id="height-reset-btn" title="Resetear altura" class="text-[11px] text-slate-500 hover:text-disney-blue underline whitespace-nowrap">
+              Quitar
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1">Oculta juegos que pidan más de esta altura</p>
+        </div>
+
+        <!-- Filtro por Estado (Pendiente / Reservado / Subido) -->
+        <div>
+          <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Estado de Visita</label>
+          <select id="status-filter" class="w-full py-2 px-3 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-disney-lightBlue focus:border-disney-lightBlue outline-none">
+            <option value="all">📋 Todos los estados</option>
+            <option value="pending">⏳ Pendiente por subir</option>
+            <option value="reserved">🗓️ Ya reservado (LL)</option>
+            <option value="done">✅ Ya me subí</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Active Filters Summary & Result count -->
+    <div class="flex items-center justify-between text-xs text-slate-500 px-1 mb-3">
+      <div>
+        Mostrando <span id="visible-count" class="font-bold text-slate-800">0</span> experiencias
+      </div>
+      <div id="quick-tag-info" class="text-[11px] bg-slate-200/80 px-2 py-0.5 rounded-full text-slate-700">
+        Ordenadas por prioridad de reserva
+      </div>
+    </div>
+
+    <!-- Cards Grid Container -->
+    <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Se inyecta dinámicamente con JS -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-16 px-4 bg-white rounded-2xl border border-dashed border-slate-300 my-6">
+      <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <h3 class="text-base font-bold text-slate-700">No encontramos atracciones con estos filtros</h3>
+      <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Prueba ajustando la altura del niño, cambiando de parque o borrando el término de búsqueda.</p>
+      <button id="btn-clear-filters" class="mt-4 px-4 py-2 bg-disney-blue text-white text-xs font-semibold rounded-xl shadow hover:bg-disney-lightBlue transition">
+        Restablecer filtros
+      </button>
+    </div>
+
+  </main>
+
+  <!-- Modal / Dialog de confirmación de Reset (evitando alert/confirm) -->
+  <div id="reset-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 animate-in fade-in">
+      <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      </div>
+      <h3 class="text-center font-bold text-slate-800 text-base mb-1">¿Reiniciar todos los estados?</h3>
+      <p class="text-center text-xs text-slate-500 mb-5">Se restablecerán todas las atracciones al estado "Pendiente" en este dispositivo.</p>
+      <div class="flex gap-2">
+        <button id="modal-cancel-btn" class="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+          Cancelar
+        </button>
+        <button id="modal-confirm-btn" class="flex-1 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition shadow">
+          Sí, reiniciar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-xl transition-all duration-300 transform translate-y-16 opacity-0 pointer-events-none flex items-center gap-2">
+    <span id="toast-icon">✨</span>
+    <span id="toast-msg">Mensaje</span>
+  </div>
+
+  <!-- Modal / Pantalla de Autenticación Bloqueada -->
+  <div id="auth-modal" class="fixed inset-0 bg-disney-deep/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Icono de Seguridad Lightning Lane -->
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 via-amber-500 to-amber-600 flex items-center justify-center mx-auto mb-4 shadow-lg ring-4 ring-amber-100">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+
+      <h2 class="text-xl font-black text-slate-800 tracking-tight">Acceso Privado</h2>
+      <p class="text-xs text-slate-500 mt-1 mb-5">Ingresa la clave de acceso para desbloquear el planificador de Lightning Lane.</p>
+
+      <form id="auth-form" class="space-y-3.5">
+        <div class="text-left">
+          <label for="auth-password" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Clave de Seguridad</label>
+          <div class="relative">
+            <input type="password" id="auth-password" autocomplete="current-password" placeholder="Ingresa tu clave" 
+              class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-disney-lightBlue focus:border-disney-lightBlue outline-none transition pr-10">
+            <button type="button" id="btn-toggle-pwd" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none">
+              <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+          </div>
+          <p id="auth-error" class="hidden text-[11px] text-red-600 font-medium mt-1.5 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            <span>Clave incorrecta. Inténtalo de nuevo.</span>
+          </p>
+        </div>
+
+        <button type="submit" class="w-full py-2.5 px-4 bg-gradient-to-r from-disney-blue to-disney-lightBlue hover:from-disney-deep hover:to-disney-blue text-white text-sm font-bold rounded-xl shadow-md transition-all active:scale-[0.98]">
+          Desbloquear Planificador
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // Datos estrictamente estructurados a partir del documento PDF
+    // lines: { standby, rswitch, single, early } -> true si estaba marcado en verde ("Opción"), false si estaba en blanco ("N/A")
+    const RIDES_DATA = [
+      // MAGIC KINGDOM
+      { id: "mk-1", park: "mk", parkName: "Magic Kingdom", type: "LLSP", priority: 1, name: "Tron Lightcycle Run", zone: "Tomorrowland", height: 122, isShow: false, lines: { standby: true, rswitch: true, single: true, early: false } },
+      { id: "mk-2", park: "mk", parkName: "Magic Kingdom", type: "LLSP", priority: 2, name: "Seven Dwarfs Mine Train", zone: "Fantasyland", height: 97, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "mk-3", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 3, name: "Big Thunder Mountain", zone: "Frontierland", height: 97, isShow: false, lines: { standby: true, rswitch: true, single: false, early: false } },
+      { id: "mk-4", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 4, name: "Tiana's Bayou Adventure", zone: "Frontierland", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: false, early: false } },
+      { id: "mk-5", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 5, name: "Peter Pan's Flight", zone: "Fantasyland", height: null, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "mk-6", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 6, name: "Jungle Cruise", zone: "Adventureland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "mk-7", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 7, name: "Space Mountain", zone: "Tomorrowland", height: 113, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "mk-8", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 8, name: "Pirates of the Caribbean", zone: "Adventureland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "mk-9", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 9, name: "Haunted Mansion", zone: "Liberty Square", height: null, isShow: false, lines: { standby: true, rswitch: true, single: false, early: false } },
+      { id: "mk-10", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 10, name: "The Barnstormer", zone: "Fantasyland", height: 89, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "mk-11", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 11, name: "Buzz Lightyear's Space Ranger Spin", zone: "Tomorrowland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "mk-12", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 12, name: "It's a Small World", zone: "Fantasyland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "mk-13", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 13, name: "Under The Sea - Journey of The Little Mermaid", zone: "Fantasyland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "mk-14", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 14, name: "Mad Tea Party", zone: "Fantasyland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "mk-15", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 15, name: "4D-Mickey's PhilharMagic 4D", zone: "Fantasyland", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "mk-16", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 16, name: "Dumbo the Flying Elephant", zone: "Fantasyland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "mk-17", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 17, name: "The Many Adventures of Winnie the Pooh", zone: "Fantasyland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "mk-18", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 18, name: "The Magic Carpets of Aladdin", zone: "Adventureland", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "mk-19", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 19, name: "Tomorrowland Speedway", zone: "Tomorrowland", height: 82, isShow: false, lines: { standby: true, rswitch: true, single: false, early: false } },
+      { id: "mk-20", park: "mk", parkName: "Magic Kingdom", type: "LLMP", priority: 20, name: "SHOW DE COMEDIA - Monsters Inc Laugh Floor", zone: "Tomorrowland", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+
+      // HOLLYWOOD STUDIOS
+      { id: "hs-1", park: "hs", parkName: "Hollywood Studios", type: "LLSP", priority: 1, name: "Star Wars: Rise of the Resistance", zone: "Galaxy's Edge", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "hs-2", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 2, name: "Slinky Dog Dash", zone: "Toy Story Land", height: 97, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "hs-3", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 3, name: "Rock'n' Roller Coaster Starring The Muppets", zone: "Sunset Blvd", height: 122, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "hs-4", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 4, name: "Mickey & Minnie's Runaway Railway", zone: "Hollywood Blvd", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "hs-5", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 5, name: "Millennium Falcon: Smugglers Run", zone: "Galaxy's Edge", height: 97, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "hs-6", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 6, name: "Toy Story Mania!", zone: "Toy Story Land", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "hs-7", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 7, name: "The Twilight Zone Tower of Terror", zone: "Sunset Blvd", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "hs-8", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 8, name: "SHOW- The Little Mermaid - A Musical Adventure", zone: "Animation Cyd", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "hs-9", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 9, name: "Alien Swirling Saucers", zone: "Toy Story Land", height: 82, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "hs-10", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 10, name: "Star Tours: The Adventures Continue", zone: "Echo Lake", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "hs-11", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 11, name: "SHOW Frozen: For the First Time in Forever", zone: "Echo Lake", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "hs-12", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 12, name: "SHOW-Indiana Jones Epic Stunt Spectacular", zone: "Echo Lake", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "hs-13", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 13, name: "SHOW-Beauty & The Beast Live On Stage", zone: "Sunset Blvd", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "hs-14", park: "hs", parkName: "Hollywood Studios", type: "LLMP", priority: 14, name: "SHOW- Disney Junior Play and Dance", zone: "Animation Cyd", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+
+      // EPCOT
+      { id: "ep-1", park: "epcot", parkName: "EPCOT", type: "LLSP", priority: 1, name: "Guardians of the Galaxy: Cosmic Rewind", zone: "Discovery", height: 107, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ep-2", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 2, name: "Test Track 3.0", zone: "Showcase", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ep-3", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 3, name: "Remy's Ratatouille Adventure", zone: "Showcase", height: null, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ep-4", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 4, name: "Frozen Ever After", zone: "Showcase", height: null, isShow: false, lines: { standby: true, rswitch: true, single: false, early: true } },
+      { id: "ep-5", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 5, name: "Soarin' Around the World", zone: "Nature", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ep-6", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 6, name: "The Seas with Nemo & Friends", zone: "Nature", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "ep-7", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 7, name: "Spaceship Earth", zone: "Celebration", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "ep-8", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 8, name: "Mision: Space (Green or Orange - 112 cm)", zone: "Discovery", height: 102, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ep-9", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 9, name: "Journey Into Imagination With Figment", zone: "Celebration", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "ep-10", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 10, name: "Living with the Land", zone: "Nature", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "ep-11", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 11, name: "4D-Disney and Pixar Short Film Festival", zone: "Celebration", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "ep-12", park: "epcot", parkName: "EPCOT", type: "LLMP", priority: 12, name: "INTERACTIVO-Turtle Talk With Crush", zone: "Nature", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+
+      // ANIMAL KINGDOM
+      { id: "ak-1", park: "ak", parkName: "Animal Kingdom", type: "LLSP", priority: 1, name: "Avatar Flight of Passage", zone: "Pandora", height: 113, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ak-2", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 2, name: "Expedition Everest", zone: "Asia", height: 113, isShow: false, lines: { standby: true, rswitch: true, single: true, early: true } },
+      { id: "ak-3", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 3, name: "Kilimanjaro Safaris", zone: "Africa", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "ak-4", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 4, name: "Na'vi River Journey", zone: "Pandora", height: null, isShow: false, lines: { standby: true, rswitch: false, single: false, early: true } },
+      { id: "ak-5", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 5, name: "Kali River Rapids", zone: "Asia", height: 97, isShow: false, lines: { standby: true, rswitch: true, single: false, early: false } },
+      { id: "ak-6", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 6, name: "SHOW-Festival of the Lion King", zone: "Africa", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "ak-7", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 7, name: "4D-Zootopia: Better Zoogether!", zone: "Discovery Island", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "ak-8", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 8, name: "SHOW-Finding Nemo: The Big Blue Show", zone: "Dinoland", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } },
+      { id: "ak-9", park: "ak", parkName: "Animal Kingdom", type: "LLMP", priority: 9, name: "SHOW-Feathered Friends in Flight Show", zone: "Asia", height: null, isShow: true, lines: { standby: true, rswitch: false, single: false, early: false } }
+    ];
+
+    // Helper para formatear el botón/caja de cada tipo de línea
+    function renderLineBadge(label, isOption) {
+      if (isOption) {
+        return `
+          <div class="bg-emerald-50 py-1 px-1 rounded-lg border border-emerald-300 shadow-xs">
+            <span class="block text-[9px] text-emerald-700 font-semibold uppercase tracking-tight">${label}</span>
+            <span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Opción
+            </span>
+          </div>`;
+      }
+      return `
+        <div class="bg-slate-50 py-1 px-1 rounded-lg border border-slate-200">
+          <span class="block text-[9px] text-slate-400 font-medium uppercase tracking-tight">${label}</span>
+          <span class="text-[10px] font-semibold text-slate-400">N/A</span>
+        </div>`;
+    }
+
+    // Clave de almacenamiento en LocalStorage
+    const STORAGE_KEY = 'disney_ll_planner_user_status_v1';
+    const AUTH_KEY = 'disney_ll_planner_auth_v1';
+    const APP_PASS = 'disney2026'; // Puedes cambiar esta contraseña aquí
+
+    // Estado en memoria de cada atracción: { [id]: 'pending' | 'reserved' | 'done' }
+    let userStatus = {};
+
+    // Elementos de Autenticación
+    const authModal = document.getElementById('auth-modal');
+    const authForm = document.getElementById('auth-form');
+    const authPassword = document.getElementById('auth-password');
+    const authError = document.getElementById('auth-error');
+    const btnTogglePwd = document.getElementById('btn-toggle-pwd');
+    const btnLogoutMobile = document.getElementById('btn-logout-mobile');
+    const btnLogoutDesktop = document.getElementById('btn-logout-desktop');
+
+    // Validación y control de autenticación
+    function checkAuthStatus() {
+      const isAuth = localStorage.getItem(AUTH_KEY) === 'true';
+      if (isAuth) {
+        authModal.classList.add('hidden');
+      } else {
+        authModal.classList.remove('hidden');
+        setTimeout(() => {
+          if (authPassword) authPassword.focus();
+        }, 100);
+      }
+    }
+
+    function authenticateUser(enteredPass) {
+      if (enteredPass === APP_PASS) {
+        localStorage.setItem(AUTH_KEY, 'true');
+        authModal.classList.add('hidden');
+        authError.classList.add('hidden');
+        authPassword.value = '';
+        showToast("¡Bienvenido! Sesión iniciada.", "🔓");
+      } else {
+        authError.classList.remove('hidden');
+        authPassword.classList.add('border-red-500', 'bg-red-50/50');
+        setTimeout(() => {
+          authPassword.classList.remove('border-red-500', 'bg-red-50/50');
+        }, 1200);
+      }
+    }
+
+    function logoutUser() {
+      localStorage.removeItem(AUTH_KEY);
+      authModal.classList.remove('hidden');
+      if (authPassword) {
+        authPassword.value = '';
+        authPassword.focus();
+      }
+      showToast("Planificador bloqueado.", "🔒");
+    }
+
+    // Toggle para mostrar/ocultar contraseña
+    btnTogglePwd.addEventListener('click', () => {
+      const isPassword = authPassword.type === 'password';
+      authPassword.type = isPassword ? 'text' : 'password';
+    });
+
+    // Formulario de autenticación
+    authForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      authenticateUser(authPassword.value.trim());
+    });
+
+    // Botones de Logout / Bloquear
+    btnLogoutMobile.addEventListener('click', logoutUser);
+    btnLogoutDesktop.addEventListener('click', logoutUser);
+
+    // Cargar estados desde localStorage
+    function loadSavedStatus() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          userStatus = JSON.parse(saved);
+        }
+      } catch (e) {
+        console.error("Error reading localStorage", e);
+        userStatus = {};
+      }
+    }
+
+    // Guardar estados en localStorage
+    function saveStatus() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(userStatus));
+      } catch (e) {
+        console.error("Error writing to localStorage", e);
+      }
+      updateCounters();
+    }
+
+    // Variables de Filtros Activos
+    let currentPark = 'all';
+    let currentPassType = 'all';
+    let currentZone = 'all';
+    let currentHeightLimit = null; // null = sin filtro; number = altura max permitida
+    let currentStatusFilter = 'all';
+    let searchQuery = '';
+
+    // Inicialización del DOM
+    const parkTabs = document.getElementById('park-tabs');
+    const searchInput = document.getElementById('search-input');
+    const passFilter = document.getElementById('pass-filter');
+    const zoneFilter = document.getElementById('zone-filter');
+    const heightRange = document.getElementById('height-range');
+    const heightLabel = document.getElementById('height-label');
+    const heightResetBtn = document.getElementById('height-reset-btn');
+    const statusFilter = document.getElementById('status-filter');
+    const cardsGrid = document.getElementById('cards-grid');
+    const emptyState = document.getElementById('empty-state');
+    const visibleCount = document.getElementById('visible-count');
+    const btnClearFilters = document.getElementById('btn-clear-filters');
+
+    // Elementos de contadores
+    const statTotal = document.getElementById('stat-total');
+    const statReserved = document.getElementById('stat-reserved');
+    const statDone = document.getElementById('stat-done');
+    const statPending = document.getElementById('stat-pending');
+
+    // Modales y Toasts
+    const resetModal = document.getElementById('reset-modal');
+    const btnReset = document.getElementById('btn-reset');
+    const btnResetDesktop = document.getElementById('btn-reset-desktop');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-msg');
+    const toastIcon = document.getElementById('toast-icon');
+
+    function showToast(message, icon = '✨') {
+      toastMsg.textContent = message;
+      toastIcon.textContent = icon;
+      toast.classList.remove('translate-y-16', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-16', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2500);
+    }
+
+    // Poblar el dropdown de Zonas según parque actual
+    function populateZoneDropdown() {
+      const currentSelected = zoneFilter.value;
+      zoneFilter.innerHTML = '<option value="all">📍 Todas las Zonas</option>';
+      
+      const zones = new Set();
+      RIDES_DATA.forEach(ride => {
+        if (currentPark === 'all' || ride.park === currentPark) {
+          zones.add(ride.zone);
+        }
+      });
+
+      Array.from(zones).sort().forEach(zone => {
+        const option = document.createElement('option');
+        option.value = zone;
+        option.textContent = zone;
+        zoneFilter.appendChild(option);
+      });
+
+      if (Array.from(zones).includes(currentSelected)) {
+        zoneFilter.value = currentSelected;
+      } else {
+        zoneFilter.value = 'all';
+        currentZone = 'all';
+      }
+    }
+
+    // Actualizar contadores globales y locales
+    function updateCounters() {
+      let total = RIDES_DATA.length;
+      let reserved = 0;
+      let done = 0;
+      let pending = 0;
+
+      RIDES_DATA.forEach(ride => {
+        const st = userStatus[ride.id] || 'pending';
+        if (st === 'reserved') reserved++;
+        else if (st === 'done') done++;
+        else pending++;
+      });
+
+      statTotal.textContent = total;
+      statReserved.textContent = reserved;
+      statDone.textContent = done;
+      statPending.textContent = pending;
+    }
+
+    // Renderizar tarjetas
+    function renderCards() {
+      const q = searchQuery.toLowerCase().trim();
+
+      const filtered = RIDES_DATA.filter(ride => {
+        // Filtro Parque
+        if (currentPark !== 'all' && ride.park !== currentPark) return false;
+
+        // Filtro Pase
+        if (currentPassType !== 'all' && ride.type !== currentPassType) return false;
+
+        // Filtro Zona
+        if (currentZone !== 'all' && ride.zone !== currentZone) return false;
+
+        // Filtro de Altura
+        // Si el niño mide X cm:
+        // Puede entrar si el juego no pide altura (ride.height === null) O si ride.height <= X.
+        if (currentHeightLimit !== null) {
+          if (ride.height !== null && ride.height > currentHeightLimit) {
+            return false;
+          }
+        }
+
+        // Filtro por Estado
+        const itemState = userStatus[ride.id] || 'pending';
+        if (currentStatusFilter !== 'all' && itemState !== currentStatusFilter) return false;
+
+        // Filtro de búsqueda
+        if (q) {
+          const matchName = ride.name.toLowerCase().includes(q);
+          const matchZone = ride.zone.toLowerCase().includes(q);
+          const matchPark = ride.parkName.toLowerCase().includes(q);
+          if (!matchName && !matchZone && !matchPark) return false;
+        }
+
+        return true;
+      });
+
+      visibleCount.textContent = filtered.length;
+      cardsGrid.innerHTML = '';
+
+      if (filtered.length === 0) {
+        cardsGrid.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+      } else {
+        cardsGrid.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+      }
+
+      // Ordenar por prioridad numérica del PDF
+      filtered.sort((a, b) => a.priority - b.priority);
+
+      filtered.forEach(ride => {
+        const state = userStatus[ride.id] || 'pending';
+
+        // Estilos y badges según estado y pase
+        const isSinglePass = ride.type === 'LLSP';
+        
+        let cardBorderClass = 'border-slate-200';
+        let cardBgClass = 'bg-white';
+        let statusBadge = '';
+
+        if (state === 'reserved') {
+          cardBorderClass = 'border-amber-400 ring-2 ring-amber-300/40';
+          cardBgClass = 'bg-amber-50/40';
+          statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span> Reservado
+          </span>`;
+        } else if (state === 'done') {
+          cardBorderClass = 'border-emerald-300 ring-1 ring-emerald-300/30';
+          cardBgClass = 'bg-emerald-50/30';
+          statusBadge = `<span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+            <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Ya me subí
+          </span>`;
+        } else {
+          statusBadge = `<span class="inline-flex items-center text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+            Pendiente
+          </span>`;
+        }
+
+        // Card HTML
+        const card = document.createElement('div');
+        card.className = `rounded-2xl border ${cardBorderClass} ${cardBgClass} shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden relative`;
+
+        card.innerHTML = `
+          <!-- Header Card -->
+          <div class="p-4 pb-3">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              
+              <!-- Priority Badge & Park Badge -->
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-black text-sm px-2.5 py-0.5 rounded-lg text-white shadow-sm ${
+                  isSinglePass ? 'bg-gradient-to-r from-amber-500 to-amber-600' : 'bg-gradient-to-r from-disney-blue to-disney-lightBlue'
+                }">
+                  #${ride.priority}
+                </span>
+
+                <span class="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md ${
+                  isSinglePass 
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300' 
+                    : 'bg-blue-50 text-disney-blue border border-blue-200'
+                }">
+                  ${ride.type === 'LLSP' ? '⭐ Single Pass' : '🔷 Multi Pass'}
+                </span>
+
+                <span class="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                  ${ride.parkName}
+                </span>
+              </div>
+
+              <!-- Status Pill -->
+              <div>
+                ${statusBadge}
+              </div>
+            </div>
+
+            <!-- Ride Name -->
+            <h2 class="text-base font-bold text-slate-900 leading-snug mb-1">
+              ${ride.name}
+            </h2>
+
+            <!-- Zone & Height Indicators -->
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-2">
+              <!-- Zona -->
+              <div class="flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="font-medium text-slate-700">${ride.zone}</span>
+              </div>
+
+              <!-- Altura -->
+              <div class="flex items-center gap-1">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                  ride.height 
+                    ? 'bg-orange-100 text-orange-800 border border-orange-200' 
+                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                }">
+                  📏 Altura: ${ride.height ? ride.height + ' cm' : '-'}
+                </span>
+              </div>
+
+              ${ride.isShow ? `
+                <span class="text-[10px] bg-purple-100 text-purple-700 font-semibold px-1.5 py-0.5 rounded">
+                  🎭 Show / 4D
+                </span>
+              ` : ''}
+            </div>
+
+            <!-- Subtabla de Tipos de Línea (con opción verde o N/A según PDF) -->
+            <div class="mt-3 pt-2.5 border-t border-slate-100">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Líneas Adicionales</span>
+                <span class="text-[9px] text-emerald-700 font-medium">Verde = Opción</span>
+              </div>
+              <div class="grid grid-cols-4 gap-1 text-center">
+                ${renderLineBadge('Standby', ride.lines?.standby)}
+                ${renderLineBadge('RSwitch', ride.lines?.rswitch)}
+                ${renderLineBadge('Single R', ride.lines?.single)}
+                ${renderLineBadge('Early', ride.lines?.early)}
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Interactive Action Buttons -->
+          <div class="bg-slate-50/80 p-2.5 border-t border-slate-200/80 flex items-center justify-between gap-1.5">
+            
+            <!-- Botón Pendiente -->
+            <button data-action="pending" data-id="${ride.id}" 
+              class="flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1 cursor-pointer ${
+                state === 'pending'
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-slate-200/70 border border-slate-200'
+              }">
+              <span>⏳ Pendiente</span>
+            </button>
+
+            <!-- Botón Reservado -->
+            <button data-action="reserved" data-id="${ride.id}" 
+              class="flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1 cursor-pointer ${
+                state === 'reserved'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-white text-amber-700 hover:bg-amber-50 border border-amber-200'
+              }">
+              <span>🗓️ Reservado</span>
+            </button>
+
+            <!-- Botón Subido -->
+            <button data-action="done" data-id="${ride.id}" 
+              class="flex-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1 cursor-pointer ${
+                state === 'done'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
+              }">
+              <span>✅ Subido</span>
+            </button>
+
+          </div>
+        `;
+
+        cardsGrid.appendChild(card);
+      });
+    }
+
+    // Manejo de eventos de botones en las cards (Delegación de eventos)
+    cardsGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+
+      const action = btn.getAttribute('data-action');
+      const id = btn.getAttribute('data-id');
+      const ride = RIDES_DATA.find(r => r.id === id);
+
+      if (!ride) return;
+
+      if (action === 'pending') {
+        userStatus[id] = 'pending';
+        showToast(`"${ride.name}" marcado como Pendiente`, '⏳');
+      } else if (action === 'reserved') {
+        userStatus[id] = 'reserved';
+        showToast(`¡Lightning Lane reservado para "${ride.name}"!`, '⚡');
+      } else if (action === 'done') {
+        userStatus[id] = 'done';
+        showToast(`¡Genial! Disfrutaste "${ride.name}"`, '🎉');
+      }
+
+      saveStatus();
+      renderCards();
+    });
+
+    // Filtro por Parques (Tabs)
+    parkTabs.addEventListener('click', (e) => {
+      const tab = e.target.closest('.park-tab');
+      if (!tab) return;
+
+      document.querySelectorAll('.park-tab').forEach(b => {
+        b.classList.remove('bg-disney-blue', 'text-white', 'shadow');
+        b.classList.add('text-slate-600', 'hover:bg-slate-100');
+      });
+
+      tab.classList.remove('text-slate-600', 'hover:bg-slate-100');
+      tab.classList.add('bg-disney-blue', 'text-white', 'shadow');
+
+      currentPark = tab.getAttribute('data-park');
+      populateZoneDropdown();
+      renderCards();
+    });
+
+    // Filtros inputs
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      renderCards();
+    });
+
+    passFilter.addEventListener('change', (e) => {
+      currentPassType = e.target.value;
+      renderCards();
+    });
+
+    zoneFilter.addEventListener('change', (e) => {
+      currentZone = e.target.value;
+      renderCards();
+    });
+
+    statusFilter.addEventListener('change', (e) => {
+      currentStatusFilter = e.target.value;
+      renderCards();
+    });
+
+    // Slider de Altura de Niños
+    heightRange.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (val >= 125) {
+        currentHeightLimit = null;
+        heightLabel.textContent = "Sin límite";
+      } else {
+        currentHeightLimit = val;
+        heightLabel.textContent = `≤ ${val} cm`;
+      }
+      renderCards();
+    });
+
+    heightResetBtn.addEventListener('click', () => {
+      heightRange.value = 130;
+      currentHeightLimit = null;
+      heightLabel.textContent = "Sin límite";
+      renderCards();
+      showToast("Filtro de altura restablecido", "📏");
+    });
+
+    btnClearFilters.addEventListener('click', () => {
+      currentPark = 'all';
+      currentPassType = 'all';
+      currentZone = 'all';
+      currentHeightLimit = null;
+      currentStatusFilter = 'all';
+      searchQuery = '';
+
+      searchInput.value = '';
+      passFilter.value = 'all';
+      statusFilter.value = 'all';
+      heightRange.value = 130;
+      heightLabel.textContent = "Sin límite";
+
+      document.querySelectorAll('.park-tab').forEach((b, idx) => {
+        if (idx === 0) {
+          b.classList.add('bg-disney-blue', 'text-white', 'shadow');
+          b.classList.remove('text-slate-600', 'hover:bg-slate-100');
+        } else {
+          b.classList.remove('bg-disney-blue', 'text-white', 'shadow');
+          b.classList.add('text-slate-600', 'hover:bg-slate-100');
+        }
+      });
+
+      populateZoneDropdown();
+      renderCards();
+      showToast("Todos los filtros se restablecieron", "🔄");
+    });
+
+    // Modal de Reinicio (sin usar confirm/alert)
+    function openResetModal() {
+      resetModal.classList.remove('hidden');
+    }
+
+    function closeResetModal() {
+      resetModal.classList.add('hidden');
+    }
+
+    btnReset.addEventListener('click', openResetModal);
+    btnResetDesktop.addEventListener('click', openResetModal);
+    modalCancelBtn.addEventListener('click', closeResetModal);
+
+    modalConfirmBtn.addEventListener('click', () => {
+      userStatus = {};
+      saveStatus();
+      renderCards();
+      closeResetModal();
+      showToast("Progreso de atracciones reiniciado", "🧹");
+    });
+
+    // Cerrar modal al clickear afuera
+    resetModal.addEventListener('click', (e) => {
+      if (e.target === resetModal) closeResetModal();
+    });
+
+    // Inicialización al cargar la ventana
+    window.onload = function () {
+      checkAuthStatus();
+      loadSavedStatus();
+      populateZoneDropdown();
+      updateCounters();
+      renderCards();
+    };
+  </script>
+</body>
+</html>
